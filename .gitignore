@@ -48,7 +48,6 @@ _deps
 CMakeUserPresets.json
 
 build/*
-*build*
 
 .vscode/*
 !.vscode/settings.json
@@ -62,6 +61,3 @@ build/*
 
 # Built Visual Studio Code Extensions
 *.vsix
-
-*.bat
-
