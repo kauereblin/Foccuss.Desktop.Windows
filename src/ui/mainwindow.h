@@ -3,6 +3,7 @@
 
 #include "../../include/Common.h"
 #include "../../include/ForwardDeclarations.h"
+#include "../service/apiservice.h"
 
 class MainWindow : public QMainWindow
 {
@@ -30,6 +31,9 @@ private slots:
     void onInstalledAppsSearchChanged(const QString& text);
     void onBlockedAppsSearchChanged(const QString& text);
     void onSaveTimeSettings();
+    void onSyncCompleted(bool success);
+    void onSyncFailed(const QString& error);
+    void onDataFetched(bool success);
 
 private:
     void setupUi();
@@ -42,6 +46,7 @@ private:
     void filterAppList(const QString& searchText, bool isInstalledList);
     void loadTimeSettings();
     void saveTimeSettings();
+    void setupApiService();
     
 private:
     QTabWidget* m_tabWidget;
@@ -89,6 +94,7 @@ private:
     AppMonitor *m_appMonitor;
     Database *m_database;
     WinService *m_service;
+    ApiService *m_apiService;
 
     // Selected app
     std::shared_ptr<AppModel> m_selectedInstalledApp;

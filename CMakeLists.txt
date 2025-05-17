@@ -13,7 +13,7 @@ set(CMAKE_AUTOUIC ON)
 # Qt
 set(Qt6_DIR "C:/Qt/6.9.0/msvc2022_64/lib/cmake/Qt6")
 set(CMAKE_PREFIX_PATH "C:/Qt/6.9.0/msvc2022_64")
-find_package(Qt6 COMPONENTS Widgets Core Sql REQUIRED)
+find_package(Qt6 COMPONENTS Widgets Core Sql Network REQUIRED)
 
 # SQLite
 set(SQLite3_INCLUDE_DIR "C:/SQLite/include")
@@ -40,20 +40,13 @@ endif()
 # Define source files
 set(SOURCES
     src/main.cpp
-    
-    # UI components
     src/ui/mainwindow.cpp
     src/ui/blockoverlay.cpp
     src/ui/applistmodel.cpp
-    
-    # Core functionality
     src/core/appdetector.cpp
     src/core/appmonitor.cpp
-    
-    # Service functionality
     src/service/winservice.cpp
-    
-    # Data management
+    src/service/apiservice.cpp
     src/data/database.cpp
     src/data/appmodel.cpp
     src/data/blockTimeSettingsModel.cpp
@@ -67,6 +60,7 @@ set(HEADERS
     src/core/appdetector.h
     src/core/appmonitor.h
     src/service/winservice.h
+    src/service/apiservice.h
     src/data/database.h
     src/data/appmodel.h
     src/data/blockTimeSettingsModel.h
@@ -96,6 +90,7 @@ target_link_libraries(Foccuss PRIVATE
     Qt6::Widgets
     Qt6::Core
     Qt6::Sql
+    Qt6::Network
     ${SQLite3_LIBRARIES}
 )
 
@@ -123,6 +118,7 @@ if(WIN32)
             $<TARGET_FILE:Qt6::Gui>
             $<TARGET_FILE:Qt6::Widgets>
             $<TARGET_FILE:Qt6::Sql>
+            $<TARGET_FILE:Qt6::Network>
             C:/Qt/6.9.0/msvc2022_64/plugins/sqldrivers/qsqlite.dll
             $<TARGET_FILE_DIR:Foccuss>
     )

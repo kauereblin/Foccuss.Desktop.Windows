@@ -48,6 +48,7 @@ Database::Database() : m_initialized(false)
     }
     
     m_dbPath = dir.filePath("foccuss.db");
+    // %appdata%/foccuss/foccuss
 }
 
 Database::~Database()
@@ -97,20 +98,19 @@ bool Database::createTables()
     QSqlQuery query(m_db);
     
     if (!query.exec("CREATE TABLE IF NOT EXISTS blocked_apps ("
-                   "id INTEGER PRIMARY KEY AUTOINCREMENT, "
-                   "app_path TEXT UNIQUE NOT NULL, "
-                   "app_name TEXT NOT NULL, "
-                   "is_blocked BOOLEAN NOT NULL)"))
+                   "appPath TEXT PRIMARY KEY, "
+                   "appName TEXT NOT NULL, "
+                   "isBlocked BOOLEAN NOT NULL)"))
     {
         return false;
     }
 
     if (!query.exec("CREATE TABLE IF NOT EXISTS block_time_settings ("
                    "id INTEGER PRIMARY KEY, "
-                   "start_hour INTEGER NOT NULL, "
-                   "start_minute INTEGER NOT NULL, "
-                   "end_hour INTEGER NOT NULL, "
-                   "end_minute INTEGER NOT NULL, "
+                   "startHour INTEGER NOT NULL, "
+                   "startMinute INTEGER NOT NULL, "
+                   "endHour INTEGER NOT NULL, "
+                   "endMinute INTEGER NOT NULL, "
                    "monday BOOLEAN, "
                    "tuesday BOOLEAN, "
                    "wednesday BOOLEAN, "
@@ -118,15 +118,15 @@ bool Database::createTables()
                    "friday BOOLEAN, "
                    "saturday BOOLEAN, "
                    "sunday BOOLEAN, "
-                   "is_active BOOLEAN NOT NULL)"))
+                   "isActive BOOLEAN NOT NULL)"))
     {
         return false;
     }
     
     if (!query.exec("INSERT OR IGNORE INTO block_time_settings ("
-                        "id, start_hour, start_minute, end_hour, end_minute, "
+                        "id, startHour, startMinute, endHour, endMinute, "
                         "monday, tuesday, wednesday, thursday, friday, "
-                        "saturday, sunday, is_active"
+                        "saturday, sunday, isActive"
                         ") VALUES ("
                         "1, 8, 0, 17, 0, "
                         "1, 1, 1, 1, 1, "
@@ -147,7 +147,7 @@ bool Database::addBlockedApp(const QString& appPath, const QString& appName)
     QString normalizedPath = QDir::cleanPath(appPath).replace("\\", "/");
 
     QSqlQuery query(m_db);
-    query.prepare("INSERT OR REPLACE INTO blocked_apps (app_path, app_name, is_blocked) VALUES (:normalizedPath, :appPath, 1)");
+    query.prepare("INSERT OR REPLACE INTO blocked_apps (appPath, appName, isBlocked) VALUES (:normalizedPath, :appPath, 1)");
     query.bindValue(":normalizedPath", normalizedPath);
     query.bindValue(":appPath", appName);
     
@@ -164,7 +164,7 @@ bool Database::removeBlockedApp(const QString& appPath)
     if (!m_initialized) return false;
     
     QSqlQuery query(m_db);
-    query.prepare("UPDATE blocked_apps SET is_blocked = 0 WHERE app_path LIKE :path");
+    query.prepare("UPDATE blocked_apps SET isBlocked = 0 WHERE appPath LIKE :path");
     query.bindValue(":path", appPath);
     
     if (!query.exec()) {
@@ -182,7 +182,7 @@ bool Database::isAppBlocked(const QString& appPath) const
     QString normalizedPath = QDir::cleanPath(appPath).replace("\\", "/");
 
     QSqlQuery query(m_db);
-    query.prepare("SELECT 1 FROM blocked_apps WHERE app_path LIKE :path;");
+    query.prepare("SELECT 1 FROM blocked_apps WHERE appPath LIKE :path;");
     query.bindValue(":path", QVariant(normalizedPath));
     
     if (!query.exec() || !query.next())
@@ -198,13 +198,14 @@ QList<std::shared_ptr<AppModel>> Database::getBlockedApps() const
     if (!m_initialized) return result;
     
     QSqlQuery query(m_db);
-    query.exec("SELECT app_path, app_name, is_blocked FROM blocked_apps WHERE is_blocked = 1 ORDER BY app_name");
+    query.exec("SELECT appPath, appName, isBlocked FROM blocked_apps ORDER BY appName");
     
     while (query.next()) {
         QString appPath = query.value(0).toString();
         QString appName = query.value(1).toString();
+        bool isBlocked = query.value(2).toBool();
         
-        result.append(std::make_shared<AppModel>(appPath, appName));
+        result.append(std::make_shared<AppModel>(appPath, appName, isBlocked));
     }
     
     return result;
@@ -219,8 +220,8 @@ std::shared_ptr<BlockTimeSettingsModel> Database::getBlockTimeSettings() const
     if (!m_initialized) return nullptr;
     
     QSqlQuery query(m_db);
-    if (!query.exec("SELECT start_hour, start_minute, end_hour, end_minute, "
-                    "monday, tuesday, wednesday, thursday, friday, saturday, sunday, is_active "
+    if (!query.exec("SELECT startHour, startMinute, endHour, endMinute, "
+                    "monday, tuesday, wednesday, thursday, friday, saturday, sunday, isActive "
                     "FROM block_time_settings WHERE id = 1")) {
         _logToFile("getBlockTimeSettings failed: " + query.lastError().text());
         return nullptr;
@@ -263,10 +264,10 @@ bool Database::updateBlockTimeSettings(const std::shared_ptr<BlockTimeSettingsMo
     
     QSqlQuery query(m_db);
     query.prepare("UPDATE block_time_settings SET "
-                 "start_hour = :startHour, "
-                 "start_minute = :startMinute, "
-                 "end_hour = :endHour, "
-                 "end_minute = :endMinute, "
+                 "startHour = :startHour, "
+                 "startMinute = :startMinute, "
+                 "endHour = :endHour, "
+                 "endMinute = :endMinute, "
                  "monday = :monday, "
                  "tuesday = :tuesday, "
                  "wednesday = :wednesday, "
@@ -274,7 +275,7 @@ bool Database::updateBlockTimeSettings(const std::shared_ptr<BlockTimeSettingsMo
                  "friday = :friday, "
                  "saturday = :saturday, "
                  "sunday = :sunday, "
-                 "is_active = :isActive "
+                 "isActive = :isActive "
                  "WHERE id = 1");
     
     query.bindValue(":startHour", startTime.hour());
@@ -303,7 +304,7 @@ bool Database::isBlockingActive() const
     if (!m_initialized) return false;
 
     QSqlQuery query(m_db);
-    if (!query.exec("SELECT is_active FROM block_time_settings WHERE id = 1")) {
+    if (!query.exec("SELECT isActive FROM block_time_settings WHERE id = 1")) {
         _logToFile("isBlockingActive failed: " + query.lastError().text());
         return false;
     }

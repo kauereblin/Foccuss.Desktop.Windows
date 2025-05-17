@@ -7,7 +7,9 @@
 #include "../data/appmodel.h"
 #include "../data/blockTimeSettingsModel.h"
 #include "../service/winservice.h"
+#include "../service/apiservice.h"
 
+#include <algorithm>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QGridLayout>
@@ -47,7 +49,8 @@ MainWindow::MainWindow(Database* database, QWidget *parent)
       m_appDetector(nullptr),
       m_appMonitor(nullptr),
       m_database(database),
-      m_service(nullptr)
+      m_service(nullptr),
+      m_apiService(nullptr)
 {
     m_appDetector = new AppDetector(this);
     
@@ -59,6 +62,7 @@ MainWindow::MainWindow(Database* database, QWidget *parent)
     
     setupUi();
     setupTrayIcon();
+    setupApiService();
     
     loadBlockedApps();
 
@@ -81,6 +85,9 @@ MainWindow::~MainWindow()
     }
     if (m_service) {
         delete m_service;
+    }
+    if (m_apiService) {
+        delete m_apiService;
     }
 }
 
@@ -357,9 +364,29 @@ void MainWindow::setupSettingsTab()
     tabLayout->addStretch();
 }
 
+void MainWindow::setupApiService()
+{
+    m_apiService = new ApiService(m_database, this);
+
+    m_apiService->setBaseUrl("http://localhost:3000");
+
+    connect(m_apiService, &ApiService::syncCompleted, this, &MainWindow::onSyncCompleted);
+    connect(m_apiService, &ApiService::syncFailed, this, &MainWindow::onSyncFailed);
+    connect(m_apiService, &ApiService::dataFetched, this, &MainWindow::onDataFetched);
+
+    m_apiService->fetchBlockedApps();
+    m_apiService->fetchTimeSettings();
+}
+
 void MainWindow::loadBlockedApps()
 {
     m_blockedApps = m_database->getBlockedApps();
+    m_blockedApps.erase(
+        std::remove_if(m_blockedApps.begin(), m_blockedApps.end(), [](const auto app) {
+            return !app->getActive();
+        }),
+        m_blockedApps.end()
+    );
 
     if (m_blockedSearchEdit && !m_blockedSearchEdit->text().isEmpty()) {
         filterAppList(m_blockedSearchEdit->text(), false);
@@ -415,6 +442,7 @@ void MainWindow::onBlockApp()
         if (m_database->addBlockedApp(m_selectedInstalledApp->getPath(), 
                                      m_selectedInstalledApp->getName())) {
             loadBlockedApps();
+            m_apiService->syncBlockedApps();
             
             QMessageBox::information(this, "Success", 
                                    "Application has been blocked: " + 
@@ -432,6 +460,7 @@ void MainWindow::onUnblockApp()
     if (m_selectedBlockedApp && m_selectedBlockedApp->isValid()) {
         if (m_database->removeBlockedApp(m_selectedBlockedApp->getPath())) {
             loadBlockedApps();
+            m_apiService->syncBlockedApps();
             
             QMessageBox::information(this, "Success", 
                                    "Application has been unblocked: " + 
@@ -627,9 +656,31 @@ void MainWindow::onSaveTimeSettings()
     
     // Save to database
     if (m_database->updateBlockTimeSettings(m_timeSettings)) {
+        m_apiService->syncTimeSettings();
         QMessageBox::information(this, "Success", "Time settings saved successfully");
     } else {
         QMessageBox::warning(this, "Error", "Failed to save time settings");
+    }
+}
+
+void MainWindow::onSyncCompleted(bool success)
+{
+    if (success) {
+        qDebug() << "Sync completed successfully";
+    }
+}
+
+void MainWindow::onSyncFailed(const QString& error)
+{
+    qDebug() << "Sync failed:" << error;
+    QMessageBox::warning(this, "Sync Error", "Failed to sync with server: " + error);
+}
+
+void MainWindow::onDataFetched(bool success)
+{
+    if (success) {
+        loadBlockedApps();
+        loadTimeSettings();
     }
 }
 
