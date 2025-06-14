@@ -11,29 +11,25 @@
 #include <QFileInfo>
 #include <QFile>
 #include <QTime>
-//#include <QVariant>
 
 static QString s_logFilePath;
 
 void _logToFile(const QString& message) {
-    if (false)
-    {
-        if (s_logFilePath.isEmpty()) {
-            QString appDataPath = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
-            QDir appDataDir(appDataPath);
-            if (!appDataDir.exists()) {
-                appDataDir.mkpath(".");
-            }
-            s_logFilePath = appDataDir.filePath("foccuss_service.log");
+    if (s_logFilePath.isEmpty()) {
+        QString appDataPath = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+        QDir appDataDir(appDataPath);
+        if (!appDataDir.exists()) {
+            appDataDir.mkpath(".");
         }
+        s_logFilePath = appDataDir.filePath("foccuss_service.log");
+    }
 
-        QFile logFile(s_logFilePath);
-        if (logFile.open(QIODevice::Append | QIODevice::Text)) {
-            QTextStream out(&logFile);
-            out << QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss.zzz") 
-                << " - " << message << "\n";
-            logFile.close();
-        }
+    QFile logFile(s_logFilePath);
+    if (logFile.open(QIODevice::Append | QIODevice::Text)) {
+        QTextStream out(&logFile);
+        out << QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss.zzz") 
+            << " - " << message << "\n";
+        logFile.close();
     }
 }
 

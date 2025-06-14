@@ -6,6 +6,29 @@
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QDebug>
+#include <QStandardPaths>
+#include <QDir>
+
+static QString s_logFilePath;
+
+void logToFileAS(const QString& message) {
+    if (s_logFilePath.isEmpty()) {
+        QString appDataPath = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+        QDir appDataDir(appDataPath);
+        if (!appDataDir.exists()) {
+            appDataDir.mkpath(".");
+        }
+        s_logFilePath = appDataDir.filePath("foccuss_service.log");
+    }
+
+    QFile logFile(s_logFilePath);
+    if (logFile.open(QIODevice::Append | QIODevice::Text)) {
+        QTextStream out(&logFile);
+        out << QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss.zzz") 
+            << " - " << message << "\n";
+        logFile.close();
+    }
+}
 
 ApiService::ApiService(Database* database, QObject *parent)
     : QObject(parent)
@@ -206,7 +229,14 @@ void ApiService::processBlockedAppsResponse(const QJsonArray& apps)
         QJsonObject appObj = appValue.toObject();
         QString path = appObj["appPath"].toString();
         QString name = appObj["appName"].toString();
-        m_database->addBlockedApp(path, name);
+        if (path.isEmpty() || name.isEmpty())
+            continue;
+
+        int isBlocked = appObj["isBlocked"].toInt();
+        if (isBlocked == 1)
+            m_database->addBlockedApp(path, name);
+        else
+            m_database->removeBlockedApp(path);
     }
 }
 

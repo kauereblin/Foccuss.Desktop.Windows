@@ -82,10 +82,7 @@ void AppMonitor::checkRunningApps()
         return;
 
     if (!m_database->isBlockingActive() || !m_database->isBlockingNow())
-    {
-        logToFile_("!m_database->isBlockingActive() || !m_database->isBlockingNow()");
         return;
-    }
 
     HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
     if (hSnapshot == INVALID_HANDLE_VALUE)

@@ -32,6 +32,29 @@
 #include <QSpacerItem>
 #include <QSizePolicy>
 #include <QRegularExpression>
+#include <QStandardPaths>
+#include <QDir>
+
+static QString s_logFilePath;
+
+void logToFileMW(const QString& message) {
+    if (s_logFilePath.isEmpty()) {
+        QString appDataPath = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+        QDir appDataDir(appDataPath);
+        if (!appDataDir.exists()) {
+            appDataDir.mkpath(".");
+        }
+        s_logFilePath = appDataDir.filePath("foccuss_service.log");
+    }
+
+    QFile logFile(s_logFilePath);
+    if (logFile.open(QIODevice::Append | QIODevice::Text)) {
+        QTextStream out(&logFile);
+        out << QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss.zzz") 
+            << " - " << message << "\n";
+        logFile.close();
+    }
+}
 
 MainWindow::MainWindow(Database* database, QWidget *parent)
     : QMainWindow(parent),
@@ -368,12 +391,13 @@ void MainWindow::setupApiService()
 {
     m_apiService = new ApiService(m_database, this);
 
-    m_apiService->setBaseUrl("http://localhost:3000");
+    m_apiService->setBaseUrl("http://ec2-18-219-89-146.us-east-2.compute.amazonaws.com:3000");
 
     connect(m_apiService, &ApiService::syncCompleted, this, &MainWindow::onSyncCompleted);
     connect(m_apiService, &ApiService::syncFailed, this, &MainWindow::onSyncFailed);
     connect(m_apiService, &ApiService::dataFetched, this, &MainWindow::onDataFetched);
 
+    logToFileMW("API Service initialized");
     m_apiService->fetchBlockedApps();
     m_apiService->fetchTimeSettings();
 }
@@ -434,6 +458,7 @@ void MainWindow::onRefreshApps()
     
     m_selectedInstalledApp = nullptr;
     m_blockButton->setEnabled(false);
+    m_apiService->fetchBlockedApps();
 }
 
 void MainWindow::onBlockApp()
@@ -679,6 +704,7 @@ void MainWindow::onSyncFailed(const QString& error)
 void MainWindow::onDataFetched(bool success)
 {
     if (success) {
+        qDebug() << "Fetch completed successfully";
         loadBlockedApps();
         loadTimeSettings();
     }
